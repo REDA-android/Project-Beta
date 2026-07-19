@@ -61,13 +61,13 @@ app.post("/api/ai/simulate", async (req, res) => {
   try {
     let responseText;
     try {
-      // Try primary model
-      responseText = await simulateWithModel("gemini-2.0-flash");
+      // Try primary model (gemini-3.5-flash)
+      responseText = await simulateWithModel("gemini-3.5-flash");
     } catch (primaryErr: any) {
       if (primaryErr.message?.includes('429') || primaryErr.message?.includes('quota')) {
         console.log("Primary model quota hit, trying fallback...");
-        // Fallback to 1.5 flash which might have separate quota
-        responseText = await simulateWithModel("gemini-1.5-flash");
+        // Fallback to gemini-3.1-flash-lite which has separate quota
+        responseText = await simulateWithModel("gemini-3.1-flash-lite");
       } else {
         throw primaryErr;
       }
