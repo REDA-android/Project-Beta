@@ -2,13 +2,7 @@
   "version": 2,
   "functions": {
     "api/index.ts": {
-      "includeFiles": [
-        "agri_vision/**",
-        "climate/**",
-        "graphcast/**",
-        "remote_sensing/**",
-        "timesfm/**"
-      ]
+      "includeFiles": "**/*.{py,md,ipynb,csv}"
     }
   },
   "rewrites": [
