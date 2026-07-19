@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Awesome Spectral Indices & GEE Datasets",
+  "description": "A comprehensive catalog of spectral indices, Google Earth Engine datasets, and state-of-the-art AI research tools for remote sensing, weather forecasting, and agriculture (GraphCast, TimesFM, Agriculture-Vision, etc).",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
