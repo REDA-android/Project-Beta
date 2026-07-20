@@ -115,3 +115,64 @@ export const graphcastTree: FileNode[] = [
   { name: 'solar_radiation.py', type: 'file', path: 'graphcast/solar_radiation.py' },
   { name: 'data_utils.py', type: 'file', path: 'graphcast/data_utils.py' },
 ];
+
+export const floodForecastingTree: FileNode[] = [
+  { name: 'README.md', type: 'file', path: 'hydrology/flood_forecasting/README.md' },
+  {
+    name: 'models',
+    type: 'directory',
+    path: 'hydrology/flood_forecasting/models',
+    children: [
+      { name: 'lstm.py', type: 'file', path: 'hydrology/flood_forecasting/models/lstm.py' },
+      { name: 'gru.py', type: 'file', path: 'hydrology/flood_forecasting/models/gru.py' },
+    ]
+  },
+  {
+    name: 'data_processing',
+    type: 'directory',
+    path: 'hydrology/flood_forecasting/data_processing',
+    children: [
+      { name: 'hydro_data.py', type: 'file', path: 'hydrology/flood_forecasting/data_processing/hydro_data.py' },
+    ]
+  }
+];
+
+export const globalStreamflowTree: FileNode[] = [
+  { name: 'README.md', type: 'file', path: 'hydrology/global_streamflow/README.md' },
+  { name: 'streamflow_prediction.py', type: 'file', path: 'hydrology/global_streamflow/streamflow_prediction.py' },
+  { name: 'evaluation_metrics.py', type: 'file', path: 'hydrology/global_streamflow/evaluation_metrics.py' },
+];
+
+export const rusleTree: FileNode[] = [
+  { name: 'README.md', type: 'file', path: 'hydrology/rusle/README.md' },
+  { name: 'rusle_model.py', type: 'file', path: 'hydrology/rusle/rusle_model.py' },
+  {
+    name: 'factors',
+    type: 'directory',
+    path: 'hydrology/rusle/factors',
+    children: [
+      { name: 'r_factor.py', type: 'file', path: 'hydrology/rusle/factors/r_factor.py' },
+      { name: 'k_factor.py', type: 'file', path: 'hydrology/rusle/factors/k_factor.py' },
+      { name: 'ls_factor.py', type: 'file', path: 'hydrology/rusle/factors/ls_factor.py' },
+    ]
+  }
+];
+
+export const bulkDownload25dTree: FileNode[] = [
+  { name: 'README.md', type: 'file', path: 'geotools/bulk_download_25d/README.md' },
+  { name: 'download_mesh.py', type: 'file', path: 'geotools/bulk_download_25d/download_mesh.py' },
+  { name: 'convert_formats.py', type: 'file', path: 'geotools/bulk_download_25d/convert_formats.py' },
+];
+
+export const geetilesTree: FileNode[] = [
+  { name: 'README.md', type: 'file', path: 'geotools/geetiles/README.md' },
+  { name: 'tile_downloader.py', type: 'file', path: 'geotools/geetiles/tile_downloader.py' },
+  { name: 'dataset_preparation.py', type: 'file', path: 'geotools/geetiles/dataset_preparation.py' },
+];
+
+export const geemapTree: FileNode[] = [
+  { name: 'README.md', type: 'file', path: 'geotools/geemap/README.md' },
+  { name: 'interactive_map.py', type: 'file', path: 'geotools/geemap/interactive_map.py' },
+  { name: 'geemap_utils.py', type: 'file', path: 'geotools/geemap/geemap_utils.py' },
+];
+

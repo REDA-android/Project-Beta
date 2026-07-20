@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Folder, FileText, ChevronRight, ChevronDown, Search, X, Copy, Check, Play, Terminal, Info, Loader2, ExternalLink, Download, RefreshCw } from 'lucide-react';
+import { Folder, FileText, ChevronRight, ChevronDown, Search, X, Copy, Check, Play, Terminal, Info, Loader2, ExternalLink, Download, RefreshCw, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { InteractivePythonUI } from './InteractivePythonUI';
 
 declare global {
   interface Window {
@@ -38,11 +39,18 @@ export function RepoExplorer({ repoName, rootPath, files }: RepoExplorerProps) {
   const [showTerminal, setShowTerminal] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [pyodide, setPyodide] = useState<any>(null);
+  const [activeViewTab, setActiveViewTab] = useState<'ui' | 'code' | 'react-ts'>('code');
+  const [convertedCode, setConvertedCode] = useState<string | null>(null);
+  const [conversionExplanation, setConversionExplanation] = useState<string | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionError, setConversionError] = useState<string | null>(null);
 
   useEffect(() => {
     // Lazy load Pyodide
     const initPyodide = async () => {
-      if (window.loadPyodide && !window.pyodide) {
+      if (window.pyodide) {
+        setPyodide(window.pyodide);
+      } else if (window.loadPyodide) {
         try {
           const p = await window.loadPyodide();
           setPyodide(p);
@@ -65,13 +73,50 @@ export function RepoExplorer({ repoName, rootPath, files }: RepoExplorerProps) {
     setExpandedDirs(newExpanded);
   };
 
+  const handleConvertToReact = async (codeToConvert: string, fileName: string) => {
+    if (!codeToConvert) return;
+    setIsConverting(true);
+    setConversionError(null);
+    setConvertedCode(null);
+    setConversionExplanation(null);
+    try {
+      const response = await fetch('/api/ai/convert-to-react', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeToConvert, fileName: fileName.split('/').pop() })
+      });
+      const data = await response.json();
+      if (response.status === 429) {
+        setConversionError(data.explanation || "Rate limit exceeded. Please try again soon.");
+        setConvertedCode(data.code || "");
+      } else if (data.code) {
+        setConvertedCode(data.code);
+        setConversionExplanation(data.explanation);
+      } else {
+        setConversionError(data.error || "Failed to convert python to React/TypeScript");
+      }
+    } catch (err) {
+      setConversionError("An error occurred during conversion.");
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
   const handleFileClick = async (path: string) => {
     setSelectedFile(path);
     setIsLoading(true);
     setFileContent(null);
     setOutput(null);
     setExplanation(null);
+    setConvertedCode(null);
+    setConversionExplanation(null);
+    setConversionError(null);
     setShowTerminal(false);
+    if (path.endsWith('.py')) {
+      setActiveViewTab('ui');
+    } else {
+      setActiveViewTab('code');
+    }
     try {
       const response = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
       const data = await response.json();
@@ -102,12 +147,11 @@ export function RepoExplorer({ repoName, rootPath, files }: RepoExplorerProps) {
     setOutput("Initializing execution environment...\n");
     setExplanation(null);
 
-    // If it's a research model or has complex imports, use AI simulation
-    const complexKeywords = ['jax', 'torch', 'tensorflow', 'graphcast', 'xarray', 'beam', 'import', 'plt', 'pd'];
+    const complexKeywords = ['jax', 'torch', 'tensorflow', 'graphcast', 'xarray', 'beam', 'import', 'plt', 'pd', 'ee', 'geemap', 'pandas', 'numpy', 'matplotlib'];
     const isComplex = complexKeywords.some(k => codeToRun.toLowerCase().includes(k));
 
-    if (isComplex) {
-      setOutput(prev => prev + "Detecting heavy research dependencies (JAX/Torch/Xarray)... \nInitializing high-performance AI Simulation Engine to process research logic.\n\n");
+    const runAISimulation = async () => {
+      setOutput(prev => prev + "Detecting code architecture / special dependencies...\nInitializing high-performance AI Simulation Engine to process execution logic.\n\n");
       try {
         const response = await fetch('/api/ai/simulate', {
           method: 'POST',
@@ -130,32 +174,36 @@ export function RepoExplorer({ repoName, rootPath, files }: RepoExplorerProps) {
       } finally {
         setIsExecuting(false);
       }
+    };
+
+    if (isComplex) {
+      await runAISimulation();
       return;
     }
 
-    // Otherwise try Pyodide for simple logic
-    if (!pyodide) {
-      setOutput(prev => prev + "Pyodide not loaded. Using AI simulation as fallback...\n");
-      // Repeat AI logic or just wait
-      runCode(); 
+    const activePyodide = pyodide || window.pyodide;
+    if (!activePyodide) {
+      setOutput(prev => prev + "Pyodide engine is not fully loaded. Falling back to AI Simulation...\n");
+      await runAISimulation();
       return;
     }
 
     try {
       setOutput(prev => prev + "Running client-side Python (Pyodide)...\n\n");
       // Redirect stdout
-      pyodide.runPython(`
+      await activePyodide.runPythonAsync(`
 import sys
 import io
 sys.stdout = io.StringIO()
       `);
       
-      await pyodide.runPythonAsync(fileContent);
+      await activePyodide.runPythonAsync(codeToRun);
       
-      const stdOut = pyodide.runPython("sys.stdout.getvalue()");
+      const stdOut = activePyodide.runPython("sys.stdout.getvalue()");
       setOutput(prev => prev + (stdOut || "Script finished with no output."));
     } catch (err: any) {
-      setOutput(prev => prev + "Execution Error: " + err.message);
+      setOutput(prev => prev + "Execution Error in Pyodide: " + err.message + "\n\nRetrying with AI simulation fallback...\n");
+      await runAISimulation();
     } finally {
       setIsExecuting(false);
     }
@@ -182,12 +230,19 @@ sys.stdout = io.StringIO()
   };
 
   const downloadFile = () => {
-    if (!fileContent || !selectedFile) return;
-    const blob = new Blob([fileContent], { type: 'text/plain' });
+    const textToDownload = activeViewTab === 'react-ts' ? convertedCode : fileContent;
+    if (!textToDownload || !selectedFile) return;
+    const blob = new Blob([textToDownload], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = selectedFile.split('/').pop() || 'file.py';
+    
+    let fileName = selectedFile.split('/').pop() || 'file.py';
+    if (activeViewTab === 'react-ts') {
+      fileName = fileName.replace(/\.py$/, '.tsx');
+    }
+    a.download = fileName;
+    
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -195,8 +250,9 @@ sys.stdout = io.StringIO()
   };
 
   const copyToClipboard = () => {
-    if (fileContent) {
-      navigator.clipboard.writeText(fileContent);
+    const textToCopy = activeViewTab === 'react-ts' ? convertedCode : fileContent;
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -315,8 +371,36 @@ sys.stdout = io.StringIO()
             >
               <div className="px-4 py-2 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between z-10">
                 <div className="flex items-center gap-4">
-                  <span className="text-[10px] font-mono text-slate-400 truncate max-w-[200px]">{selectedFile}</span>
+                  <span className="text-[10px] font-mono text-slate-400 truncate max-w-[150px]">{selectedFile}</span>
                   {selectedFile.endsWith('.py') && (
+                    <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+                      <button
+                        onClick={() => setActiveViewTab('ui')}
+                        className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${activeViewTab === 'ui' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        Interactive App
+                      </button>
+                      <button
+                        onClick={() => setActiveViewTab('code')}
+                        className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer ${activeViewTab === 'code' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        Source Code
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveViewTab('react-ts');
+                          if (!convertedCode && fileContent) {
+                            handleConvertToReact(fileContent, selectedFile);
+                          }
+                        }}
+                        className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all cursor-pointer flex items-center gap-1 ${activeViewTab === 'react-ts' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                      >
+                        <Sparkles size={10} className={isConverting ? "animate-spin" : ""} />
+                        React/TS Equivalent
+                      </button>
+                    </div>
+                  )}
+                  {selectedFile.endsWith('.py') && activeViewTab !== 'react-ts' && (
                     <button 
                       onClick={() => runCode()}
                       disabled={isExecuting}
@@ -330,21 +414,21 @@ sys.stdout = io.StringIO()
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={downloadFile}
-                    className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 transition-colors"
+                    className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 transition-colors cursor-pointer"
                     title="Download file"
                   >
                     <Download size={14} />
                   </button>
                   <button 
                     onClick={copyToClipboard}
-                    className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 transition-colors"
+                    className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 transition-colors cursor-pointer"
                     title="Copy code"
                   >
                     {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                   </button>
                   <button 
                     onClick={() => { setSelectedFile(null); setFileContent(null); setShowTerminal(false); }}
-                    className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 transition-colors"
+                    className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 transition-colors cursor-pointer"
                   >
                     <X size={14} />
                   </button>
@@ -358,6 +442,88 @@ sys.stdout = io.StringIO()
                     <div className="h-4 bg-slate-800 rounded w-1/2 animate-pulse" />
                     <div className="h-4 bg-slate-800 rounded w-2/3 animate-pulse" />
                   </div>
+                ) : selectedFile.endsWith('.py') && activeViewTab === 'ui' ? (
+                  <InteractivePythonUI 
+                    filePath={selectedFile}
+                    fileContent={fileContent || ''}
+                    onRunScript={() => runCode()}
+                    isExecuting={isExecuting}
+                    terminalOutput={output}
+                  />
+                ) : selectedFile.endsWith('.py') && activeViewTab === 'react-ts' ? (
+                  isConverting ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
+                      <div className="relative mb-6">
+                        <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full animate-pulse" />
+                        <div className="w-16 h-16 rounded-2xl bg-indigo-950 border border-indigo-500/30 flex items-center justify-center text-indigo-400 relative">
+                          <RefreshCw size={28} className="animate-spin" />
+                          <Sparkles size={14} className="absolute top-2 right-2 text-indigo-300 animate-pulse" />
+                        </div>
+                      </div>
+                      <h4 className="text-white font-bold text-lg mb-2">Converting Python to React / TS</h4>
+                      <p className="text-slate-400 text-xs max-w-sm leading-relaxed mb-6">
+                        Our advanced code translation engine is parsing Python structures, mapping numeric types to state hooks, and synthesizing a responsive styled layout...
+                      </p>
+                      <div className="flex flex-col gap-2 text-left bg-slate-900 border border-slate-800 p-4 rounded-xl w-full max-w-md">
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
+                          <span>Analyzing AST (Abstract Syntax Tree)...</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" style={{ animationDelay: '0.2s' }} />
+                          <span>Synthesizing React Hooks and State...</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" style={{ animationDelay: '0.4s' }} />
+                          <span>Generating custom Tailwind utility classes...</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : conversionError ? (
+                    <div className="p-8 text-center flex flex-col items-center justify-center min-h-[400px]">
+                      <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4">
+                        <X size={20} />
+                      </div>
+                      <h4 className="text-white font-bold mb-2">Translation Suspended</h4>
+                      <p className="text-slate-400 text-xs max-w-xs mb-6">
+                        {conversionError}
+                      </p>
+                      <button
+                        onClick={() => fileContent && handleConvertToReact(fileContent, selectedFile)}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer"
+                      >
+                        <RefreshCw size={12} />
+                        Retry Translation
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col h-full overflow-y-auto">
+                      {conversionExplanation && (
+                        <div className="m-4 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-200 text-xs leading-relaxed">
+                          <div className="flex items-center gap-2 font-bold mb-2 text-indigo-300">
+                            <Sparkles size={14} />
+                            <span>AI Conversion Explanation</span>
+                          </div>
+                          <p>{conversionExplanation}</p>
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <SyntaxHighlighter
+                          language="typescript"
+                          style={vscDarkPlus}
+                          customStyle={{
+                            margin: 0,
+                            background: 'transparent',
+                            fontSize: '12px',
+                            padding: '20px',
+                          }}
+                          showLineNumbers
+                        >
+                          {convertedCode || ''}
+                        </SyntaxHighlighter>
+                      </div>
+                    </div>
+                  )
                 ) : (
                   <SyntaxHighlighter
                     language={selectedFile.endsWith('.py') ? 'python' : selectedFile.endsWith('.md') ? 'markdown' : 'javascript'}

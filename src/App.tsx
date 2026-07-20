@@ -4,14 +4,14 @@
  */
 
 import { motion } from "motion/react";
-import { Search, ExternalLink, Database, Activity, ArrowLeft, Sparkles, MessageSquare, Cloud, Clock, Eye } from "lucide-react";
+import { Search, ExternalLink, Database, Activity, ArrowLeft, Sparkles, MessageSquare, Cloud, Clock, Eye, Droplets, Download, Compass, Map, Layers } from "lucide-react";
 import { useState, useEffect } from "react";
 import { GEEDataset, SpectralIndex } from "./types";
 import { RepoExplorer } from "./components/RepoExplorer";
-import { remoteSensingTree, graphcastTree, climateTree, timesfmTree, agriVisionTree } from "./data";
+import { remoteSensingTree, graphcastTree, climateTree, timesfmTree, agriVisionTree, floodForecastingTree, globalStreamflowTree, rusleTree, bulkDownload25dTree, geetilesTree, geemapTree } from "./data";
 
 export default function App() {
-  const [view, setView] = useState<"home" | "spectral" | "gee" | "research" | "graphcast" | "climate" | "timesfm" | "agri_vision">("home");
+  const [view, setView] = useState<"home" | "spectral" | "gee" | "research" | "graphcast" | "climate" | "timesfm" | "agri_vision" | "flood_forecasting" | "global_streamflow" | "rusle" | "bulk_download_25d" | "geetiles" | "geemap">("home");
   const [activeTab, setActiveTab] = useState<"overview" | "explorer" | "ai">("overview");
   const [spectralIndices, setSpectralIndices] = useState<SpectralIndex[]>([]);
   const [geeDatasets, setGeeDatasets] = useState<GEEDataset[]>([]);
@@ -181,6 +181,54 @@ export default function App() {
                 count={2}
                 onClick={() => setView("agri_vision")}
                 color="emerald"
+              />
+              <CollectionCard
+                icon={<Droplets className="text-blue-600" />}
+                title="Flood Forecasting"
+                description="LSTM-based river discharge and flood forecasting model by Google Research."
+                count={3}
+                onClick={() => { setView("flood_forecasting"); setActiveTab("overview"); }}
+                color="blue"
+              />
+              <CollectionCard
+                icon={<Activity className="text-sky-600" />}
+                title="Global Daily Streamflow"
+                description="Global daily river flow prediction model paper and NeuralHydrology scripts."
+                count={3}
+                onClick={() => { setView("global_streamflow"); setActiveTab("overview"); }}
+                color="cyan"
+              />
+              <CollectionCard
+                icon={<Layers className="text-amber-600" />}
+                title="RUSLE Soil Loss"
+                description="Revised Universal Soil Loss Equation implementation using GEE dataset."
+                count={3}
+                onClick={() => { setView("rusle"); setActiveTab("overview"); }}
+                color="amber"
+              />
+              <CollectionCard
+                icon={<Download className="text-indigo-600" />}
+                title="Google 2.5D Downloader"
+                description="Bulk downloader and parser for Google's 2.5D building mesh data."
+                count={3}
+                onClick={() => { setView("bulk_download_25d"); setActiveTab("overview"); }}
+                color="indigo"
+              />
+              <CollectionCard
+                icon={<Compass className="text-emerald-600" />}
+                title="GEETiles Downloader"
+                description="Download and partition GEE imagery into regular ML patches."
+                count={3}
+                onClick={() => { setView("geetiles"); setActiveTab("overview"); }}
+                color="emerald"
+              />
+              <CollectionCard
+                icon={<Map className="text-purple-600" />}
+                title="Geemap Interactive"
+                description="Interactive GEE mapping, timelapses, and plots using ipyleaflet."
+                count={3}
+                onClick={() => { setView("geemap"); setActiveTab("overview"); }}
+                color="purple"
               />
             </div>
           </motion.div>
@@ -745,6 +793,606 @@ export default function App() {
                     <li className="flex gap-2">
                       <span className="text-emerald-500 font-bold">•</span>
                       <span><b>Multi-modal Potential:</b> Features multiple spectral bands beyond just RGB, enabling deep biological insights.</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {view === "flood_forecasting" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+          >
+            <button 
+              onClick={() => setView("home")}
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-4"
+            >
+              <ArrowLeft size={16} /> Back to collections
+            </button>
+            
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-blue-50 rounded-xl">
+                    <Droplets className="text-blue-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Google Research: Flood Forecasting</h3>
+                    <p className="text-slate-600">Advanced machine learning models for forecasting river streamflow and floods.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setActiveTab("overview")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-blue-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Overview
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("explorer")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "explorer" ? "bg-blue-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Code Explorer
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("ai")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "ai" ? "bg-blue-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    <Sparkles size={14} className="inline mr-1" /> AI Insights
+                  </button>
+                </div>
+              </div>
+
+              {activeTab === "overview" && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <ResearchCard 
+                    title="LSTM Forecasting"
+                    description="Deep recurrent network targeting long-term sequence dependencies of river flow."
+                    tags={["LSTM", "Deep Learning", "Hydrology"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("lstm");
+                    }}
+                    color="blue"
+                  />
+                  <ResearchCard 
+                    title="GRU Model variant"
+                    description="Lightweight gated recurrent unit model optimized for faster prediction speeds."
+                    tags={["GRU", "ML", "Optimization"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("gru");
+                    }}
+                    color="blue"
+                  />
+                </div>
+              )}
+
+              {activeTab === "explorer" && (
+                <RepoExplorer repoName="flood-forecasting" rootPath="hydrology/flood_forecasting" files={floodForecastingTree} />
+              )}
+
+              {activeTab === "ai" && (
+                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-6 text-slate-700">
+                  <div className="flex items-center gap-2 text-blue-700 font-bold mb-4">
+                    <Sparkles size={18} />
+                    <h4>AI Repository Analysis</h4>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-4">
+                    This repository implements high-fidelity hydrological forecasting using deep sequential models. It processes precipitation, temperature, and watershed attributes to forecast gauge-level river discharge.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex gap-2">
+                      <span className="text-blue-500 font-bold">•</span>
+                      <span><b>Physical Grounding:</b> Bridges physics-based hydrology with sequential data networks.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-blue-500 font-bold">•</span>
+                      <span><b>Extreme Event Sensitivity:</b> Incorporates custom loss functions to accurately model high-flow peaks.</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {view === "global_streamflow" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+          >
+            <button 
+              onClick={() => setView("home")}
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-4"
+            >
+              <ArrowLeft size={16} /> Back to collections
+            </button>
+            
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-sky-50 rounded-xl">
+                    <Activity className="text-sky-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Global Streamflow Model Paper</h3>
+                    <p className="text-slate-600">Model implementation details and daily global discharge forecasting scripts.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setActiveTab("overview")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-sky-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Overview
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("explorer")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "explorer" ? "bg-sky-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Code Explorer
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("ai")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "ai" ? "bg-sky-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    <Sparkles size={14} className="inline mr-1" /> AI Insights
+                  </button>
+                </div>
+              </div>
+
+              {activeTab === "overview" && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <ResearchCard 
+                    title="Streamflow Prediction"
+                    description="Run daily global streamflow inference on a specific catchment basin."
+                    tags={["Inference", "LSTM", "NeuralHydrology"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("prediction");
+                    }}
+                    color="blue"
+                  />
+                  <ResearchCard 
+                    title="Evaluation Metrics"
+                    description="Nash-Sutcliffe Efficiency (NSE) and Kling-Gupta Efficiency (KGE) indicators."
+                    tags={["Metrics", "Hydrology", "Statistics"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("metrics");
+                    }}
+                    color="blue"
+                  />
+                </div>
+              )}
+
+              {activeTab === "explorer" && (
+                <RepoExplorer repoName="global-streamflow" rootPath="hydrology/global_streamflow" files={globalStreamflowTree} />
+              )}
+
+              {activeTab === "ai" && (
+                <div className="bg-sky-50/50 border border-sky-100 rounded-xl p-6 text-slate-700">
+                  <div className="flex items-center gap-2 text-sky-700 font-bold mb-4">
+                    <Sparkles size={18} />
+                    <h4>AI Repository Analysis</h4>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-4">
+                    This repository exposes the scientific implementation details behind a global multi-basin streamflow forecasting network. Built on top of NeuralHydrology, it offers standardized daily projections across continents.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex gap-2">
+                      <span className="text-sky-500 font-bold">•</span>
+                      <span><b>Ungauged Basin Generalization:</b> Demonstrates how transfer learning models streamflow in regions lacking gauges.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-sky-500 font-bold">•</span>
+                      <span><b>Standardized Evaluation:</b> Utilizes NSE and KGE benchmarks to align predictions with scientific observations.</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {view === "rusle" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+          >
+            <button 
+              onClick={() => setView("home")}
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-4"
+            >
+              <ArrowLeft size={16} /> Back to collections
+            </button>
+            
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-amber-50 rounded-xl">
+                    <Layers className="text-amber-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">RUSLE Soil Loss Modeling</h3>
+                    <p className="text-slate-600">Estimate soil water erosion loss using Revised Universal Soil Loss Equation on GEE.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setActiveTab("overview")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-amber-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Overview
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("explorer")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "explorer" ? "bg-amber-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Code Explorer
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("ai")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "ai" ? "bg-amber-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    <Sparkles size={14} className="inline mr-1" /> AI Insights
+                  </button>
+                </div>
+              </div>
+
+              {activeTab === "overview" && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <ResearchCard 
+                    title="RUSLE Model Engine"
+                    description="Assembles factor layers (R, K, LS, C) in Google Earth Engine to compute soil loss."
+                    tags={["GEE", "Erosion", "Model"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("model");
+                    }}
+                    color="amber"
+                  />
+                  <ResearchCard 
+                    title="Erosivity & Erodibility"
+                    description="Calculate rainfall erosivity (R Factor) and soil erodibility (K Factor) from environmental data."
+                    tags={["R-Factor", "K-Factor", "Environment"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("factor");
+                    }}
+                    color="amber"
+                  />
+                </div>
+              )}
+
+              {activeTab === "explorer" && (
+                <RepoExplorer repoName="rusle" rootPath="hydrology/rusle" files={rusleTree} />
+              )}
+
+              {activeTab === "ai" && (
+                <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-6 text-slate-700">
+                  <div className="flex items-center gap-2 text-amber-700 font-bold mb-4">
+                    <Sparkles size={18} />
+                    <h4>AI Repository Analysis</h4>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-4">
+                    The Revised Universal Soil Loss Equation (RUSLE) is the primary mathematical model used worldwide to estimate soil erosion. This Google Earth Engine implementation enables planetary-scale soil risk modeling.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex gap-2">
+                      <span className="text-amber-500 font-bold">•</span>
+                      <span><b>Multi-source Integration:</b> Combines CHIRPS, SoilGrids, and Copernicus DEM under a unified spatial coordinate grid.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-amber-500 font-bold">•</span>
+                      <span><b>C-factor Dynamics:</b> Uses Sentinel-2 multispectral NDVI values to model crop cover variations seasonally.</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {view === "bulk_download_25d" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+          >
+            <button 
+              onClick={() => setView("home")}
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-4"
+            >
+              <ArrowLeft size={16} /> Back to collections
+            </button>
+            
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-indigo-50 rounded-xl">
+                    <Download className="text-indigo-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Google 2.5D Bulk Downloader</h3>
+                    <p className="text-slate-600">Efficiently download Google's 2.5D structural meshes and building dimensions in bulk.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setActiveTab("overview")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-indigo-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Overview
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("explorer")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "explorer" ? "bg-indigo-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Code Explorer
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("ai")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "ai" ? "bg-indigo-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    <Sparkles size={14} className="inline mr-1" /> AI Insights
+                  </button>
+                </div>
+              </div>
+
+              {activeTab === "overview" && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <ResearchCard 
+                    title="Mesh Downloader"
+                    description="Bulk requests parallel mesh blocks for custom geospatial bounding boxes."
+                    tags={["Downloader", "API", "Parallel"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("download");
+                    }}
+                    color="blue"
+                  />
+                  <ResearchCard 
+                    title="Format Converter"
+                    description="Converts proprietary building segment meshes to open glTF formats."
+                    tags={["glTF", "Mesh", "WebGL"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("convert");
+                    }}
+                    color="blue"
+                  />
+                </div>
+              )}
+
+              {activeTab === "explorer" && (
+                <RepoExplorer repoName="google-2.5d-bulk-download" rootPath="geotools/bulk_download_25d" files={bulkDownload25dTree} />
+              )}
+
+              {activeTab === "ai" && (
+                <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-6 text-slate-700">
+                  <div className="flex items-center gap-2 text-indigo-700 font-bold mb-4">
+                    <Sparkles size={18} />
+                    <h4>AI Repository Analysis</h4>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-4">
+                    This utility automates parallel tile discovery and high-volume HTTP retrieval of Google's 2.5D building mesh data. It compiles multi-file fragments into singular, structured geospatial files.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex gap-2">
+                      <span className="text-indigo-500 font-bold">•</span>
+                      <span><b>High Throughput:</b> Multi-threaded downloader bypasses traditional individual request bottlenecks.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-indigo-500 font-bold">•</span>
+                      <span><b>3D Pipelines:</b> Formulates the basis for integrating satellite elevation geometry directly into three-dimensional rendering layers.</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {view === "geetiles" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+          >
+            <button 
+              onClick={() => setView("home")}
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-4"
+            >
+              <ArrowLeft size={16} /> Back to collections
+            </button>
+            
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-emerald-50 rounded-xl">
+                    <Compass className="text-emerald-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">GEETiles Patch Downloader</h3>
+                    <p className="text-slate-600">Download Earth Engine images in gridded blocks and compile deep-learning-ready image patches.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setActiveTab("overview")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-emerald-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Overview
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("explorer")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "explorer" ? "bg-emerald-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Code Explorer
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("ai")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "ai" ? "bg-emerald-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    <Sparkles size={14} className="inline mr-1" /> AI Insights
+                  </button>
+                </div>
+              </div>
+
+              {activeTab === "overview" && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <ResearchCard 
+                    title="Tile Downloader"
+                    description="Partitions large GEE image collections into uniform, smaller grid tile boundaries."
+                    tags={["GEE", "Grids", "Export"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("tile");
+                    }}
+                    color="blue"
+                  />
+                  <ResearchCard 
+                    title="Dataset Preparation"
+                    description="Extracts sub-patches from geotiffs with configurable window sizes and strides."
+                    tags={["Patches", "ML-Ready", "Computer Vision"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("preparation");
+                    }}
+                    color="blue"
+                  />
+                </div>
+              )}
+
+              {activeTab === "explorer" && (
+                <RepoExplorer repoName="geetiles" rootPath="geotools/geetiles" files={geetilesTree} />
+              )}
+
+              {activeTab === "ai" && (
+                <div className="bg-emerald-50/50 border border-emerald-100 rounded-xl p-6 text-slate-700">
+                  <div className="flex items-center gap-2 text-emerald-700 font-bold mb-4">
+                    <Sparkles size={18} />
+                    <h4>AI Repository Analysis</h4>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-4">
+                    GEETiles solves the Earth Engine payload limit issue by chopping extensive geospatial imagery into discrete grid items, making it straightforward to build training matrices for model architectures.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex gap-2">
+                      <span className="text-emerald-500 font-bold">•</span>
+                      <span><b>Limit Bypass:</b> Automatically schedules batch export requests beneath GEE's system capacity boundaries.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-emerald-500 font-bold">•</span>
+                      <span><b>ML Integration:</b> Outputs arrays pre-shaped for direct ingest into PyTorch or TensorFlow tensors.</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {view === "geemap" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+          >
+            <button 
+              onClick={() => setView("home")}
+              className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-4"
+            >
+              <ArrowLeft size={16} /> Back to collections
+            </button>
+            
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-purple-50 rounded-xl">
+                    <Map className="text-purple-600" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold">Geemap Interactive Mapping</h3>
+                    <p className="text-slate-600">A community-driven Python package for interactive mapping with Google Earth Engine.</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setActiveTab("overview")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "overview" ? "bg-purple-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Overview
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("explorer")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "explorer" ? "bg-purple-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Code Explorer
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("ai")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "ai" ? "bg-purple-600 text-white shadow-md" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    <Sparkles size={14} className="inline mr-1" /> AI Insights
+                  </button>
+                </div>
+              </div>
+
+              {activeTab === "overview" && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  <ResearchCard 
+                    title="Interactive Map"
+                    description="Initialize custom interactive map layouts with GEE overlays and widgets."
+                    tags={["ipyleaflet", "Visualizer", "Interactive"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("interactive");
+                    }}
+                    color="blue"
+                  />
+                  <ResearchCard 
+                    title="Geemap Utils"
+                    description="High-level workflows for creating Sentinel timelapses and plotting datasets."
+                    tags={["Timelapse", "GIF", "Export"]}
+                    onClick={() => {
+                      setActiveTab("explorer");
+                      setSearchQuery("utils");
+                    }}
+                    color="blue"
+                  />
+                </div>
+              )}
+
+              {activeTab === "explorer" && (
+                <RepoExplorer repoName="geemap" rootPath="geotools/geemap" files={geemapTree} />
+              )}
+
+              {activeTab === "ai" && (
+                <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-6 text-slate-700">
+                  <div className="flex items-center gap-2 text-purple-700 font-bold mb-4">
+                    <Sparkles size={18} />
+                    <h4>AI Repository Analysis</h4>
+                  </div>
+                  <p className="text-sm leading-relaxed mb-4">
+                    <b>Geemap</b> is the gold standard for pythonic interactive visual analytics on Earth Engine data. It bridges complex ee.Image and ee.FeatureCollections with front-end Jupyter maps seamlessly.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex gap-2">
+                      <span className="text-purple-500 font-bold">•</span>
+                      <span><b>Interactive Queries:</b> Click anywhere on the map to query dynamic values across multitemporal bands.</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-purple-500 font-bold">•</span>
+                      <span><b>Rapid Prototyping:</b> Integrates with ipywidgets, allowing users to build complex geospatial dashboards in minutes.</span>
                     </li>
                   </ul>
                 </div>

@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const app = express();
 
@@ -97,6 +97,83 @@ app.post("/api/ai/simulate", async (req, res) => {
       });
     } else {
       res.status(500).json({ error: "Failed to simulate execution" });
+    }
+  }
+});
+
+app.post("/api/ai/convert-to-react", async (req, res) => {
+  const { code, fileName } = req.body;
+  if (!code) return res.status(400).json({ error: "No code provided" });
+
+  const convertWithModel = async (modelName: string) => {
+    const prompt = `
+      You are an expert full-stack developer who converts Python files used in scientific, AI, and hydrological research into beautiful, functional React/TypeScript components.
+      
+      Convert the following Python file into an elegant, modern, highly interactive, production-ready React component (written in TypeScript).
+      
+      File Name: ${fileName}
+      Code:
+      ${code}
+      
+      Requirements:
+      1. The converted component must be highly polished, visually stunning, using Tailwind CSS utility classes and Lucide-react icons (imported from 'lucide-react').
+      2. Map all major Python logical structures, formulas, variables, and outputs into interactive React state (using useState, useEffect, etc.) so that the user can tune parameters and see the calculations update in real time.
+      3. Create responsive, beautiful visual mockups for the data structures, array shapes, tensors, or spatial grids defined in the Python code (using SVG paths/charts/grids or clean styled tables).
+      4. Write clean, idiomatic TypeScript. Ensure there are no TypeScript compiler errors. Do not use complex libraries other than 'lucide-react' for icons. If charts or graphs are needed, draw them using simple, responsive SVG elements or standard styled HTML blocks.
+      5. The output must be just the React/TypeScript code block, starting with standard imports and ending with the default export component.
+      
+      Please return a JSON response with:
+      1. "code": The full React/TypeScript component code string.
+      2. "explanation": A concise, highly professional summary explaining:
+         - How the Python structures (e.g. models, tensor calculations, datasets) were translated to React.
+         - The interactive controls and state parameters introduced.
+      
+      Format the response as a single, valid JSON object with the "code" and "explanation" keys.
+    `;
+
+    const result = await genAI.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            code: { type: Type.STRING, description: "The translated React/TypeScript component source code." },
+            explanation: { type: Type.STRING, description: "A concise summary of the translation mapping." }
+          },
+          required: ["code", "explanation"]
+        }
+      }
+    });
+    return result.text;
+  };
+
+  try {
+    let responseText;
+    try {
+      responseText = await convertWithModel("gemini-3.5-flash");
+    } catch (primaryErr: any) {
+      if (primaryErr.message?.includes('429') || primaryErr.message?.includes('quota')) {
+        console.log("Primary model quota hit, trying fallback...");
+        responseText = await convertWithModel("gemini-3.1-flash-lite");
+      } else {
+        throw primaryErr;
+      }
+    }
+    
+    if (!responseText) throw new Error("No response from AI models");
+    res.json(JSON.parse(responseText.trim()));
+  } catch (err: any) {
+    console.error(err);
+    if (err.message?.includes('429') || err.message?.includes('quota')) {
+      res.status(429).json({ 
+        error: "API Quota Exceeded", 
+        code: "// Error: AI conversion engine is at capacity.\n// Please wait 30 seconds and try again.",
+        explanation: "Gemini API quota exceeded. Please try again in 30 seconds."
+      });
+    } else {
+      res.status(500).json({ error: "Failed to convert python to React/TypeScript" });
     }
   }
 });
