@@ -8,6 +8,8 @@ import { Search, ExternalLink, Database, Activity, ArrowLeft, Sparkles, MessageS
 import { useState, useEffect } from "react";
 import { GEEDataset, SpectralIndex } from "./types";
 import { RepoExplorer } from "./components/RepoExplorer";
+import { GlossaryText } from "./components/TechnicalTermGlossary";
+import { VisualFlowchart } from "./components/VisualFlowchart";
 import { remoteSensingTree, graphcastTree, climateTree, timesfmTree, agriVisionTree, floodForecastingTree, globalStreamflowTree, rusleTree, bulkDownload25dTree, geetilesTree, geemapTree } from "./data";
 
 export default function App() {
@@ -16,6 +18,50 @@ export default function App() {
   const [spectralIndices, setSpectralIndices] = useState<SpectralIndex[]>([]);
   const [geeDatasets, setGeeDatasets] = useState<GEEDataset[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    const history = localStorage.getItem("geoawesome_search_history");
+    if (history) {
+      try {
+        setSearchHistory(JSON.parse(history));
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  const saveSearchToHistory = (query: string) => {
+    if (!query.trim()) return;
+    const newHistory = [query, ...searchHistory.filter(q => q !== query)].slice(0, 5);
+    setSearchHistory(newHistory);
+    localStorage.setItem("geoawesome_search_history", JSON.stringify(newHistory));
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      saveSearchToHistory(searchQuery);
+      setShowHistory(false);
+    }
+  };
+
+  const selectHistoryItem = (query: string) => {
+    setSearchQuery(query);
+    saveSearchToHistory(query);
+    setShowHistory(false);
+  };
+
+  const clearHistory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSearchHistory([]);
+    localStorage.removeItem("geoawesome_search_history");
+  };
 
   useEffect(() => {
     // Load data
@@ -101,8 +147,37 @@ export default function App() {
                 placeholder={`Search ${view === "spectral" ? "spectral indices" : view === "gee" ? "GEE datasets" : view === "research" ? "research models" : "GraphCast tools"}...`}
                 className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full focus:ring-2 focus:ring-slate-900 outline-none transition-all"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
+                onKeyDown={handleSearchKeyDown}
+                onFocus={() => setShowHistory(true)}
+                onBlur={() => setTimeout(() => setShowHistory(false), 200)}
               />
+              {showHistory && searchHistory.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50">
+                  <div className="flex justify-between items-center px-4 py-2 bg-slate-50 border-b border-slate-100">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recent Searches</span>
+                    <button 
+                      onClick={clearHistory}
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <ul>
+                    {searchHistory.map((query, index) => (
+                      <li key={index}>
+                        <button
+                          onClick={() => selectHistoryItem(query)}
+                          className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                          <Clock size={14} className="text-slate-400" />
+                          {query}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1414,7 +1489,9 @@ function ResearchCard({ title, description, tags, onClick, color = "amber" }: an
       <h3 className={`font-bold text-lg mb-2 transition-colors ${color === 'amber' ? 'text-amber-600 group-hover:text-amber-700' : 'text-blue-600 group-hover:text-blue-700'}`}>
         {title}
       </h3>
-      <p className="text-sm text-slate-600 mb-4">{description}</p>
+      <p className="text-sm text-slate-600 mb-4">
+        <GlossaryText text={description} />
+      </p>
       <div className="flex flex-wrap gap-2">
         {tags.map((tag: string) => (
           <span key={tag} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${color === 'amber' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
@@ -1452,7 +1529,9 @@ function CollectionCard({ icon, title, description, count, onClick, color }: any
         </span>
       </div>
       <h3 className="text-xl font-bold mb-2">{title}</h3>
-      <p className="text-slate-500 text-sm">{description}</p>
+      <p className="text-slate-500 text-sm">
+        <GlossaryText text={description} />
+      </p>
     </motion.button>
   );
 }
@@ -1466,7 +1545,9 @@ function SpectralCard({ item }: { item: SpectralIndex; key?: any }) {
           {item.application_domain}
         </span>
       </div>
-      <p className="text-sm text-slate-700 font-medium mb-4 line-clamp-2">{item.long_name}</p>
+      <p className="text-sm text-slate-700 font-medium mb-4 line-clamp-2">
+        <GlossaryText text={item.long_name} />
+      </p>
       <div className="bg-slate-50 p-3 rounded-lg mb-4">
         <code className="text-xs font-mono text-slate-600 break-all">{item.formula}</code>
       </div>
