@@ -21,7 +21,6 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [geeCategory, setGeeCategory] = useState<string>("All");
   const [removedCategories, setRemovedCategories] = useState<string[]>([]);
-  const [removedDatasetIds, setRemovedDatasetIds] = useState<string[]>([]);
 
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -144,8 +143,6 @@ export default function App() {
   );
 
   const filteredGee = geeDatasets.filter((dataset) => {
-    if (removedDatasetIds.includes(dataset.id)) return false;
-
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       !q ||
@@ -404,17 +401,8 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
-                  <span>Showing {filteredGee.length} of {geeDatasets.length} items</span>
-                  {removedDatasetIds.length > 0 && (
-                    <button
-                      onClick={() => setRemovedDatasetIds([])}
-                      className="text-xs text-emerald-600 hover:text-emerald-700 underline font-sans font-medium ml-2"
-                      title="Restaurer toutes les cartes supprimées"
-                    >
-                      Restaurer cartes ({removedDatasetIds.length})
-                    </button>
-                  )}
+                <div className="text-xs text-slate-400 font-mono">
+                  Showing {filteredGee.length} of {geeDatasets.length} items
                 </div>
               </div>
 
@@ -486,11 +474,7 @@ export default function App() {
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredGee.map((item: GEEDataset, idx: number) => (
-                  <GEECard 
-                    key={`${item.id}-${idx}`} 
-                    item={item} 
-                    onDelete={(id) => setRemovedDatasetIds((prev) => [...prev, id])}
-                  />
+                  <GEECard key={`${item.id}-${idx}`} item={item} />
                 ))}
               </div>
             )}
@@ -1727,7 +1711,7 @@ function SpectralCard({ item }: { item: SpectralIndex; key?: any }) {
 
 // getGEESnippet is imported from ./utils/geeScripts
 
-function GEECard({ item, onDelete }: { item: GEEDataset; onDelete?: (id: string) => void; key?: any }) {
+function GEECard({ item }: { item: GEEDataset; key?: any }) {
   const [showModal, setShowModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -1749,20 +1733,8 @@ function GEECard({ item, onDelete }: { item: GEEDataset; onDelete?: (id: string)
 
   return (
     <>
-      <div className="overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col group relative">
+      <div className="overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col group">
         <div className="aspect-video bg-slate-100 relative overflow-hidden border-b border-slate-100">
-          {onDelete && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(item.id);
-              }}
-              className="absolute top-2 left-2 z-10 p-1.5 bg-slate-950/80 hover:bg-red-600 text-slate-300 hover:text-white backdrop-blur rounded-full transition-colors shadow-sm border border-slate-700/50 flex items-center justify-center group/btn"
-              title="Supprimer cette carte"
-            >
-              <X size={12} />
-            </button>
-          )}
           <img 
             src={item.thumbnail} 
             alt={item.title} 
