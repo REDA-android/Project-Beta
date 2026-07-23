@@ -184,6 +184,118 @@ app.post("/api/ai/flowchart", async (req, res) => {
 });
 
 
+app.post("/api/ai/convert-gee", async (req, res) => {
+  const { code, fileName } = req.body;
+  if (!code) return res.status(400).json({ error: "No code provided" });
+
+  const convertWithModel = async (modelName: string) => {
+    const prompt = `
+      You are an expert in Google Earth Engine (GEE).
+      Convert the following Python Earth Engine / Spatial analysis script into valid, copy-paste ready JavaScript code for the Google Earth Engine JavaScript Code Editor (https://code.earthengine.google.com/).
+
+      File Name: ${fileName}
+      Python Code:
+      ${code}
+
+      Instructions for Conversion:
+      1. Translate Python GEE syntax (e.g., geemap.Map(), Map.add_layer(), Map.set_center()) into standard GEE JavaScript Code Editor functions (Map.addLayer(), Map.setCenter(), Map.centerObject()).
+      2. Convert Python dictionary and list syntax into JavaScript objects and arrays.
+      3. Remove 'import ee', 'ee.Initialize()', 'import geemap' which are not needed in the web Code Editor.
+      4. Convert Python functions ('def function_name(arg):') to JavaScript ('function functionName(arg) { ... }').
+      5. Add helpful comments indicating how to run or visualize the layers in the GEE Code Editor.
+
+      Return a JSON response with:
+      {
+        "jsCode": "// Earth Engine Code Editor (JavaScript)\n...",
+        "explanation": "Summary of converted layers, imports, and GEE Code Editor tips."
+      }
+    `;
+
+    const result = await genAI.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+    return result.text;
+  };
+
+  try {
+    let responseText;
+    try {
+      responseText = await convertWithModel("gemini-3.6-flash");
+    } catch (primaryErr: any) {
+      responseText = await convertWithModel("gemini-3.1-flash-lite");
+    }
+    
+    if (!responseText) throw new Error("No response from AI models");
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to convert script to GEE JavaScript" });
+  }
+});
+
+app.post("/api/ai/simplify", async (req, res) => {
+  const { code, fileName } = req.body;
+  if (!code) return res.status(400).json({ error: "No code provided" });
+
+  const simplifyWithModel = async (modelName: string) => {
+    const prompt = `
+      You are an expert computer science teacher and spatial data expert simplifying code for non-programmers.
+      Rewrite the following Python script into clean, simplified Python code where every section and complex function is thoroughly commented with plain-English explanations.
+      
+      File Name: ${fileName}
+      Python Code:
+      ${code}
+
+      Requirements:
+      1. Add detailed, clear comments (# ...) above every block explaining in simple non-technical terms what it does (e.g. "Step 1: Setting up our study region over California", "Step 2: Filtering satellite images from Sentinel-2 to ignore clouds").
+      2. Keep variable names clear and easy to understand.
+      3. Include a summary paragraph at the top of the code as a docstring explaining the overall script goals.
+      4. Break down complex math, Earth Engine calls, and data transformations into simple steps.
+
+      Return a JSON object with:
+      {
+        "simplifiedCode": "# ==========================================\n# SIMPLIFIED CODE WITH PLAIN-ENGLISH EXPLANATIONS\n# ==========================================\n...",
+        "blockByBlock": [
+          {
+            "title": "Initialization & Authentication",
+            "explanation": "Connects your Google Earth Engine account using project openclaw-bot-494215 so satellite data can be loaded."
+          }
+        ]
+      }
+    `;
+
+    const result = await genAI.models.generateContent({
+      model: modelName,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+    return result.text;
+  };
+
+  try {
+    let responseText;
+    try {
+      responseText = await simplifyWithModel("gemini-3.6-flash");
+    } catch (primaryErr: any) {
+      responseText = await simplifyWithModel("gemini-3.1-flash-lite");
+    }
+    
+    if (!responseText) throw new Error("No response from AI models");
+    const cleanJson = responseText.replace(/```json\n?|\n?```/g, '').trim();
+    res.json(JSON.parse(cleanJson));
+  } catch (err: any) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to simplify code" });
+  }
+});
+
 app.post("/api/ai/explain", async (req, res) => {
   const { code, fileName } = req.body;
   if (!code) return res.status(400).json({ error: "No code provided" });

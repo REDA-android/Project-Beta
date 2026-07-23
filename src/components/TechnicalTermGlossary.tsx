@@ -246,18 +246,18 @@ export function GlossaryText({ text, className = '' }: TechnicalTermGlossaryProp
               </span>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed mb-2.5">
+            <div className="text-xs text-slate-300 leading-relaxed mb-2.5">
               {hoveredTerm.definition}
-            </p>
+            </div>
 
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mb-2">
               <div className="flex items-center gap-1 text-[10px] font-bold text-amber-400 mb-0.5">
                 <Sparkles size={11} />
                 <span>Plain Language Summary</span>
               </div>
-              <p className="text-[11px] text-amber-100/90 leading-normal">
+              <div className="text-[11px] text-amber-100/90 leading-normal">
                 {hoveredTerm.simpleExplanation}
-              </p>
+              </div>
             </div>
 
             <div className="text-[10px] text-slate-400 italic flex items-start gap-1">

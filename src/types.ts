@@ -26,4 +26,5 @@ export interface GEEDataset {
   docs: string;
   thematic_group: string;
   thumbnail: string;
+  code_snippet?: string;
 }
