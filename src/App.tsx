@@ -4,14 +4,13 @@
  */
 
 import { motion } from "motion/react";
-import { Search, ExternalLink, Database, Activity, ArrowLeft, Sparkles, MessageSquare, Cloud, Clock, Eye, Droplets, Download, Compass, Map as MapIcon, Layers, Code, Copy, Check, X, HelpCircle, Terminal, Info, ChevronRight, FileCode, Play, Folder, FolderOpen, LayoutGrid } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Search, ExternalLink, Database, Activity, ArrowLeft, Sparkles, MessageSquare, Cloud, Clock, Eye, Droplets, Download, Compass, Map, Layers } from "lucide-react";
+import { useState, useEffect, useDeferredValue, useMemo, memo } from "react";
 import { GEEDataset, SpectralIndex } from "./types";
 import { RepoExplorer } from "./components/RepoExplorer";
 import { GlossaryText } from "./components/TechnicalTermGlossary";
 import { VisualFlowchart } from "./components/VisualFlowchart";
-import { remoteSensingTree, graphcastTree, climateTree, timesfmTree, agriVisionTree, floodForecastingTree, globalStreamflowTree, rusleTree, bulkDownload25dTree, geetilesTree, geemapTree, mergedGEERepositories } from "./data";
-import { getGEESnippet, GEE_CATEGORIES } from "./utils/geeScripts";
+import { remoteSensingTree, graphcastTree, climateTree, timesfmTree, agriVisionTree, floodForecastingTree, globalStreamflowTree, rusleTree, bulkDownload25dTree, geetilesTree, geemapTree } from "./data";
 
 export default function App() {
   const [view, setView] = useState<"home" | "spectral" | "gee" | "research" | "graphcast" | "climate" | "timesfm" | "agri_vision" | "flood_forecasting" | "global_streamflow" | "rusle" | "bulk_download_25d" | "geetiles" | "geemap">("home");
@@ -19,8 +18,6 @@ export default function App() {
   const [spectralIndices, setSpectralIndices] = useState<SpectralIndex[]>([]);
   const [geeDatasets, setGeeDatasets] = useState<GEEDataset[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [geeCategory, setGeeCategory] = useState<string>("All");
-  const [removedCategories, setRemovedCategories] = useState<string[]>([]);
 
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -88,46 +85,22 @@ export default function App() {
         })) as SpectralIndex[];
         setSpectralIndices(indices);
 
-        const combinedMap = new Map<string, GEEDataset>();
-
-        // 1. Add static exported mergedGEERepositories
-        mergedGEERepositories.forEach(item => combinedMap.set(item.id, item as GEEDataset));
-
-        // 2. Fetch local community_datasets.json
+        let geeData;
         try {
           const geeResponse = await fetch("/community_datasets.json");
-          if (geeResponse.ok) {
-            const localData = await geeResponse.json();
-            if (Array.isArray(localData)) {
-              localData.forEach((item: GEEDataset) => {
-                if (item && item.id && !combinedMap.has(item.id)) {
-                  combinedMap.set(item.id, item);
-                }
-              });
-            }
-          }
+          if (!geeResponse.ok) throw new Error("Local GEE data not found");
+          geeData = await geeResponse.json();
         } catch (e) {
-          console.warn("Local GEE data load notice:", e);
-        }
-
-        // 3. Try remote community datasets fallback if available
-        try {
-          const remoteResponse = await fetch("https://raw.githubusercontent.com/samapriya/awesome-gee-community-datasets/master/community_datasets.json");
-          if (remoteResponse.ok) {
-            const remoteData = await remoteResponse.json();
-            if (Array.isArray(remoteData)) {
-              remoteData.forEach((item: GEEDataset) => {
-                if (item && item.id && !combinedMap.has(item.id)) {
-                  combinedMap.set(item.id, item);
-                }
-              });
-            }
+          console.warn("Falling back to remote community datasets");
+          // Fallback to a known working version or empty array if not available
+          try {
+            const geeResponse = await fetch("https://raw.githubusercontent.com/samapriya/awesome-gee-community-datasets/master/community_datasets.json");
+            geeData = await geeResponse.json();
+          } catch (err) {
+            geeData = [];
           }
-        } catch (err) {
-          // ignore remote fallback error
         }
-
-        setGeeDatasets(Array.from(combinedMap.values()));
+        setGeeDatasets(geeData);
       } catch (error) {
         console.error("Error loading data:", error);
       }
@@ -135,32 +108,39 @@ export default function App() {
     loadData();
   }, []);
 
-  const filteredSpectral = spectralIndices.filter(
-    (index) =>
-      index.short_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      index.long_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      index.application_domain.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 30;
 
-  const filteredGee = geeDatasets.filter((dataset) => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      !q ||
-      dataset.title.toLowerCase().includes(q) ||
-      dataset.tags.toLowerCase().includes(q) ||
-      dataset.provider.toLowerCase().includes(q) ||
-      dataset.id.toLowerCase().includes(q) ||
-      (dataset.type && dataset.type.toLowerCase().includes(q));
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-    const cat = geeCategory.toLowerCase();
-    const matchesCategory =
-      geeCategory === "All" ||
-      (dataset.thematic_group && dataset.thematic_group.toLowerCase().includes(cat)) ||
-      (dataset.type && dataset.type.toLowerCase().includes(cat)) ||
-      dataset.tags.toLowerCase().includes(cat);
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearchQuery, view]);
 
-    return matchesSearch && matchesCategory;
-  });
+  const filteredSpectral = useMemo(() => {
+    const query = deferredSearchQuery.toLowerCase();
+    if (!query) return spectralIndices;
+    return spectralIndices.filter(
+      (index) =>
+        index.short_name.toLowerCase().includes(query) ||
+        index.long_name.toLowerCase().includes(query) ||
+        index.application_domain.toLowerCase().includes(query)
+    );
+  }, [spectralIndices, deferredSearchQuery]);
+
+  const filteredGee = useMemo(() => {
+    const query = deferredSearchQuery.toLowerCase();
+    if (!query) return geeDatasets;
+    return geeDatasets.filter(
+      (dataset) =>
+        dataset.title.toLowerCase().includes(query) ||
+        dataset.tags.toLowerCase().includes(query) ||
+        dataset.provider.toLowerCase().includes(query)
+    );
+  }, [geeDatasets, deferredSearchQuery]);
+
+  const visibleSpectral = useMemo(() => filteredSpectral.slice(0, page * ITEMS_PER_PAGE), [filteredSpectral, page]);
+  const visibleGee = useMemo(() => filteredGee.slice(0, page * ITEMS_PER_PAGE), [filteredGee, page]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
@@ -338,7 +318,7 @@ export default function App() {
                 color="emerald"
               />
               <CollectionCard
-                icon={<MapIcon className="text-purple-600" />}
+                icon={<Map className="text-purple-600" />}
                 title="Geemap Interactive"
                 description="Interactive GEE mapping, timelapses, and plots using ipyleaflet."
                 count={3}
@@ -362,10 +342,20 @@ export default function App() {
               <ArrowLeft size={16} /> Back to collections
             </button>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredSpectral.map((item: SpectralIndex) => (
+              {visibleSpectral.map((item: SpectralIndex) => (
                 <SpectralCard key={item.short_name} item={item} />
               ))}
             </div>
+            {visibleSpectral.length < filteredSpectral.length && (
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  className="px-6 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-full hover:bg-slate-50 transition-colors shadow-sm"
+                >
+                  Load More
+                </button>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -381,101 +371,19 @@ export default function App() {
             >
               <ArrowLeft size={16} /> Back to collections
             </button>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-                    <Database size={24} />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                      <span>Google Earth Engine Hub</span>
-                      <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">
-                        {geeDatasets.length} Repositories & Datasets
-                      </span>
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Unified collection of open-source GEE tools, libraries, awesome lists, script collections, and datasets.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-xs text-slate-400 font-mono">
-                  Showing {filteredGee.length} of {geeDatasets.length} items
-                </div>
-              </div>
-
-              {/* Category Filter Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-2 border-t border-slate-100">
-                {GEE_CATEGORIES.filter(cat => !removedCategories.includes(cat)).map((cat) => {
-                  const count = cat === "All" 
-                    ? geeDatasets.length 
-                    : geeDatasets.filter(d => d.thematic_group === cat).length;
-                  if (cat !== "All" && count === 0) return null;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setGeeCategory(cat)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 group ${
-                        geeCategory === cat
-                          ? "bg-emerald-600 text-white shadow-sm"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      <span>{cat}</span>
-                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                        geeCategory === cat ? "bg-emerald-700 text-white" : "bg-slate-200 text-slate-600"
-                      }`}>
-                        {count}
-                      </span>
-                      {cat !== "All" && (
-                        <span
-                          role="button"
-                          title="Supprimer cette catégorie"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRemovedCategories((prev) => [...prev, cat]);
-                            if (geeCategory === cat) setGeeCategory("All");
-                          }}
-                          className={`p-0.5 rounded-full hover:bg-slate-300/50 transition-colors ${
-                            geeCategory === cat 
-                              ? "hover:bg-emerald-700 text-emerald-100 hover:text-white" 
-                              : "text-slate-400 hover:text-slate-700"
-                          }`}
-                        >
-                          <X size={12} />
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-                {removedCategories.length > 0 && (
-                  <button
-                    onClick={() => setRemovedCategories([])}
-                    className="text-xs text-slate-400 hover:text-emerald-600 underline font-medium whitespace-nowrap px-2"
-                  >
-                    Restaurer ({removedCategories.length})
-                  </button>
-                )}
-              </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {visibleGee.map((item: GEEDataset, idx: number) => (
+                <GEECard key={`${item.id}-${idx}`} item={item} />
+              ))}
             </div>
-
-            {filteredGee.length === 0 ? (
-              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 space-y-3">
-                <p className="text-slate-500 font-medium">No Earth Engine repositories or datasets match your search.</p>
+            {visibleGee.length < filteredGee.length && (
+              <div className="flex justify-center mt-8">
                 <button
-                  onClick={() => { setSearchQuery(""); setGeeCategory("All"); }}
-                  className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-all"
+                  onClick={() => setPage((p) => p + 1)}
+                  className="px-6 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-full hover:bg-slate-50 transition-colors shadow-sm"
                 >
-                  Reset Filters
+                  Load More
                 </button>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredGee.map((item: GEEDataset, idx: number) => (
-                  <GEECard key={`${item.id}-${idx}`} item={item} />
-                ))}
               </div>
             )}
           </motion.div>
@@ -1525,7 +1433,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-purple-50 rounded-xl">
-                    <MapIcon className="text-purple-600" size={24} />
+                    <Map className="text-purple-600" size={24} />
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold">Geemap Interactive Mapping</h3>
@@ -1612,7 +1520,7 @@ export default function App() {
   );
 }
 
-function ResearchCard({ title, description, tags, onClick, color = "amber" }: any) {
+const ResearchCard = memo(function ResearchCard({ title, description, tags, onClick, color = "amber" }: any) {
   return (
     <div 
       role="button"
@@ -1635,9 +1543,9 @@ function ResearchCard({ title, description, tags, onClick, color = "amber" }: an
       </div>
     </div>
   );
-}
+});
 
-function CollectionCard({ icon, title, description, count, onClick, color }: any) {
+const CollectionCard = memo(function CollectionCard({ icon, title, description, count, onClick, color }: any) {
   const colors: any = {
     indigo: "hover:border-indigo-200 hover:bg-indigo-50/50",
     emerald: "hover:border-emerald-200 hover:bg-emerald-50/50",
@@ -1670,9 +1578,9 @@ function CollectionCard({ icon, title, description, count, onClick, color }: any
       </div>
     </motion.div>
   );
-}
+});
 
-function SpectralCard({ item }: { item: SpectralIndex; key?: any }) {
+const SpectralCard = memo(function SpectralCard({ item }: { item: SpectralIndex; key?: any }) {
   return (
     <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-3">
@@ -1707,212 +1615,58 @@ function SpectralCard({ item }: { item: SpectralIndex; key?: any }) {
       </a>
     </div>
   );
-}
+});
 
-// getGEESnippet is imported from ./utils/geeScripts
-
-function GEECard({ item }: { item: GEEDataset; key?: any }) {
-  const [showModal, setShowModal] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const isDirectScript = item.sample_code && item.sample_code.startsWith("https://code.earthengine.google.com");
-  const geeEditorUrl = isDirectScript ? item.sample_code : "https://code.earthengine.google.com/";
-  const githubUrl = item.docs && item.docs.startsWith("https://github.com") 
-    ? item.docs 
-    : item.sample_code && item.sample_code.startsWith("https://github.com")
-    ? item.sample_code
-    : `https://github.com/${item.id}`;
-
-  const snippet = getGEESnippet(item);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(snippet);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
+const GEECard = memo(function GEECard({ item }: { item: GEEDataset; key?: any }) {
   return (
-    <>
-      <div className="overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col group">
-        <div className="aspect-video bg-slate-100 relative overflow-hidden border-b border-slate-100">
-          <img 
-            src={item.thumbnail} 
-            alt={item.title} 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={(e: any) => { e.target.src = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop"; }}
-          />
-          <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-            <span className="text-[10px] px-2 py-0.5 bg-slate-950/85 text-emerald-300 backdrop-blur rounded-full font-bold shadow-sm border border-slate-700 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              {isDirectScript ? "GEE Script Direct" : "Dépôt Code GEE"}
-            </span>
-            {item.license && (
-              <span className="text-[9px] px-1.5 py-0.2 bg-slate-900/80 text-slate-300 backdrop-blur rounded font-mono border border-slate-700/50">
-                {item.license}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="p-5 flex-1 flex flex-col">
-          <h3 className="font-bold text-sm text-slate-900 mb-1 line-clamp-2 min-h-[40px]">{item.title}</h3>
-          <p className="text-[10px] text-slate-400 font-medium mb-3 uppercase tracking-wider">{item.provider}</p>
-          
-          <div className="flex-1">
-            <div className="flex flex-wrap gap-1 mb-4">
-              {item.tags.split(",").slice(0, 4).map((tag) => (
-                <span key={tag} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
-                  {tag.trim()}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-            <button
-              onClick={() => setShowModal(true)}
-              className="w-full py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 border border-emerald-200/60"
-            >
-              <Code size={14} />
-              <span>Voir le Code & Guide GEE</span>
-            </button>
-
-            <div className="flex items-center justify-between gap-2">
-              <a
-                href={githubUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold rounded-lg transition-colors"
-                title="Consulter le code source et les scripts sur GitHub"
-              >
-                <span>GitHub</span>
-                <ExternalLink size={12} />
-              </a>
-              <a 
-                href={geeEditorUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-                title="Ouvrir Google Earth Engine Code Editor"
-              >
-                <span>{isDirectScript ? "Ouvrir Script" : "GEE Editor"}</span>
-                <ExternalLink size={12} />
-              </a>
-            </div>
-          </div>
+    <div className="overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col">
+      <div className="aspect-video bg-slate-100 relative overflow-hidden border-b border-slate-100">
+        <img 
+          src={item.thumbnail} 
+          alt={item.title} 
+          className="w-full h-full object-cover"
+          onError={(e: any) => { e.target.src = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=400&auto=format&fit=crop"; }}
+        />
+        <div className="absolute top-2 right-2">
+          <span className="text-[10px] px-2 py-1 bg-white/90 backdrop-blur rounded-full font-bold text-slate-600 shadow-sm">
+            {item.type}
+          </span>
         </div>
       </div>
-
-      {/* MODAL VIEW / CODE INSPECTOR */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
-            {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30">
-                  <Terminal size={18} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-white line-clamp-1">{item.title}</h3>
-                  <p className="text-[11px] text-slate-400 flex items-center gap-2">
-                    <span>{item.provider}</span>
-                    <span>•</span>
-                    <span className="text-emerald-400 font-mono">{item.license || "Open Source"}</span>
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowModal(false)}
-                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-5">
-              {/* Instructions Box */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-amber-950">
-                  <Info size={16} className="text-amber-600 shrink-0" />
-                  <span>Comment exécuter ce script dans Google Earth Engine ?</span>
-                </div>
-                <ol className="list-decimal list-inside space-y-1 text-amber-800/90 pl-1 leading-relaxed">
-                  <li>Cliquez sur le bouton <strong>"Copier le Code JavaScript"</strong> ci-dessous.</li>
-                  <li>Cliquez sur <strong>"Lancer dans GEE Code Editor"</strong> pour ouvrir l'éditeur Google Earth Engine.</li>
-                  <li>Collez le code (<kbd className="px-1 py-0.5 bg-amber-200/60 rounded text-[10px] font-mono">Ctrl + V</kbd>) dans l'éditeur et cliquez sur <strong>Run</strong>.</li>
-                </ol>
-              </div>
-
-              {/* Code Snippet */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <FileCode size={14} className="text-emerald-600" />
-                    Code JavaScript pour Earth Engine (.js)
-                  </span>
-                  <button
-                    onClick={handleCopy}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-sm ${
-                      copied 
-                        ? "bg-emerald-600 text-white" 
-                        : "bg-slate-900 text-white hover:bg-slate-800"
-                    }`}
-                  >
-                    {copied ? (
-                      <>
-                        <Check size={14} />
-                        <span>Copié dans le presse-papier !</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={14} />
-                        <span>Copier le Code JavaScript</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-slate-950 p-4 font-mono text-xs text-emerald-300 leading-relaxed shadow-inner max-h-72 overflow-y-auto">
-                  <pre className="whitespace-pre-wrap break-words">{snippet}</pre>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
-              <a
-                href={githubUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-colors"
-              >
-                <span>Dépôt GitHub Complexe</span>
-                <ExternalLink size={13} />
-              </a>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-100 transition-colors"
-                >
-                  Fermer
-                </button>
-                <a
-                  href={geeEditorUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
-                >
-                  <Play size={13} fill="currentColor" />
-                  <span>Lancer dans GEE Code Editor</span>
-                  <ExternalLink size={13} />
-                </a>
-              </div>
-            </div>
+      <div className="p-5 flex-1 flex flex-col">
+        <h3 className="font-bold text-sm text-slate-900 mb-1 line-clamp-2 min-h-[40px]">{item.title}</h3>
+        <p className="text-[10px] text-slate-400 font-medium mb-3 uppercase tracking-wider">{item.provider}</p>
+        
+        <div className="flex-1">
+          <div className="flex flex-wrap gap-1 mb-4">
+            {item.tags.split(",").slice(0, 3).map((tag) => (
+              <span key={tag} className="text-[10px] bg-slate-50 text-slate-500 px-2 py-0.5 rounded-full">
+                {tag.trim()}
+              </span>
+            ))}
           </div>
         </div>
-      )}
-    </>
+
+        <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+          <a 
+            href={item.docs} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+          >
+            Documentation
+          </a>
+          <a 
+            href={item.sample_code} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="p-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
+            title="Open in GEE"
+          >
+            <ExternalLink size={14} />
+          </a>
+        </div>
+      </div>
+    </div>
   );
-}
+});
