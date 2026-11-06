@@ -10,10 +10,12 @@ import { GEEDataset, SpectralIndex } from "./types";
 import { RepoExplorer } from "./components/RepoExplorer";
 import { GlossaryText } from "./components/TechnicalTermGlossary";
 import { VisualFlowchart } from "./components/VisualFlowchart";
+import { WaterSpectralStudio } from "./components/WaterSpectralStudio";
 import { remoteSensingTree, graphcastTree, climateTree, timesfmTree, agriVisionTree, floodForecastingTree, globalStreamflowTree, rusleTree, bulkDownload25dTree, geetilesTree, geemapTree } from "./data";
 
 export default function App() {
-  const [view, setView] = useState<"home" | "spectral" | "gee" | "research" | "graphcast" | "climate" | "timesfm" | "agri_vision" | "flood_forecasting" | "global_streamflow" | "rusle" | "bulk_download_25d" | "geetiles" | "geemap">("home");
+  const [view, setView] = useState<"home" | "studio" | "spectral" | "gee" | "research" | "graphcast" | "climate" | "timesfm" | "agri_vision" | "flood_forecasting" | "global_streamflow" | "rusle" | "bulk_download_25d" | "geetiles" | "geemap">("home");
+  const [studioIndex, setStudioIndex] = useState<string>("NDWI");
   const [activeTab, setActiveTab] = useState<"overview" | "explorer" | "ai">("overview");
   const [spectralIndices, setSpectralIndices] = useState<SpectralIndex[]>([]);
   const [geeDatasets, setGeeDatasets] = useState<GEEDataset[]>([]);
@@ -147,19 +149,33 @@ export default function App() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div 
-            className="flex items-center gap-2 cursor-pointer group"
-            onClick={() => { setView("home"); setSearchQuery(""); }}
-          >
-            <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
-              <Database size={18} />
+          <div className="flex items-center gap-5">
+            <div 
+              className="flex items-center gap-2 cursor-pointer group"
+              onClick={() => { setView("home"); setSearchQuery(""); }}
+            >
+              <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
+                <Database size={18} />
+              </div>
+              <h1 className="font-bold text-xl tracking-tight group-hover:text-slate-600 transition-colors">
+                GeoAwesome <span className="text-slate-400 font-normal">Catalog</span>
+              </h1>
             </div>
-            <h1 className="font-bold text-xl tracking-tight group-hover:text-slate-600 transition-colors">
-              GeoAwesome <span className="text-slate-400 font-normal">Catalog</span>
-            </h1>
+
+            <button
+              onClick={() => { setView("studio"); setStudioIndex("NDWI"); }}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm ${
+                view === "studio" 
+                  ? "bg-cyan-500 text-slate-950 shadow-cyan-500/30" 
+                  : "bg-slate-900 hover:bg-slate-800 text-white"
+              }`}
+            >
+              <Droplets size={14} className={view === "studio" ? "text-slate-950" : "text-cyan-400"} />
+              <span>Carte Interactive &amp; Eau</span>
+            </button>
           </div>
           
-          {view !== "home" && (
+          {view !== "home" && view !== "studio" && (
             <div className="relative w-full max-w-md ml-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
@@ -208,19 +224,58 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="grid md:grid-cols-2 gap-8 pt-12"
+            className="space-y-8 pt-4"
           >
-            <div className="space-y-6">
-              <h2 className="text-4xl font-bold tracking-tight text-slate-900 leading-tight">
-                The Ultimate Open Source <br />
-                <span className="text-indigo-600">Geospatial Explorer</span>
-              </h2>
-              <p className="text-lg text-slate-600 max-w-md">
-                Browse through curated collections of spectral indices and community-driven Earth Engine datasets.
-              </p>
+            {/* Featured Studio Banner */}
+            <div 
+              onClick={() => { setView("studio"); setStudioIndex("NDWI"); }}
+              className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-cyan-500/40 rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-2xl cursor-pointer group hover:border-cyan-400/80 transition-all"
+            >
+              <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/20 via-transparent to-transparent pointer-events-none" />
+              <div className="max-w-2xl relative z-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 border border-cyan-500/40 rounded-full text-cyan-300 text-xs font-semibold mb-3">
+                  <Sparkles size={13} />
+                  <span>Nouveau Studio Cartographique • Fusion Option A + Option B</span>
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
+                  Carte Interactive &amp; Filtrage Automatique de l'Eau
+                </h3>
+                <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                  Lancez les indices spectraux d'eau (NDWI, MNDWI, AWEI...) directement sur une carte dynamique avec Sentinel-2 et ESRI Satellite. Fini la redirection obligatoire vers l'éditeur GEE : ajustez les seuils et visualisez les plans d'eau en direct ou connectez l'API Google Earth Engine Cloud !
+                </p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <button className="px-5 py-2.5 bg-cyan-500 group-hover:bg-cyan-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-cyan-500/30 transition-all">
+                    <Droplets size={14} />
+                    <span>Lancer la Carte Interactive</span>
+                  </button>
+                  <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Sentinel-2 • 32 indices d'eau • Google Earth Engine Live</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid md:grid-cols-2 gap-8 pt-4">
+              <div className="space-y-6">
+                <h2 className="text-4xl font-bold tracking-tight text-slate-900 leading-tight">
+                  The Ultimate Open Source <br />
+                  <span className="text-indigo-600">Geospatial Explorer</span>
+                </h2>
+                <p className="text-lg text-slate-600 max-w-md">
+                  Browse through curated collections of spectral indices and community-driven Earth Engine datasets.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                <CollectionCard
+                  icon={<Droplets className="text-cyan-600" />}
+                  title="Studio Cartographique Eau &amp; Indices"
+                  description="Carte interactive, détection automatique des plans d'eau et fusion GEE Cloud."
+                  count={32}
+                  onClick={() => { setView("studio"); setStudioIndex("NDWI"); }}
+                  color="cyan"
+                />
               <CollectionCard
                 icon={<Activity className="text-indigo-600" />}
                 title="Spectral Indices"
@@ -326,6 +381,21 @@ export default function App() {
                 color="purple"
               />
             </div>
+            </div>
+          </motion.div>
+        )}
+
+        {view === "studio" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="-mx-4 -my-8"
+          >
+            <WaterSpectralStudio
+              initialIndex={studioIndex}
+              allSpectralIndices={spectralIndices}
+              onBack={() => setView("home")}
+            />
           </motion.div>
         )}
 
@@ -343,7 +413,14 @@ export default function App() {
             </button>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {visibleSpectral.map((item: SpectralIndex) => (
-                <SpectralCard key={item.short_name} item={item} />
+                <SpectralCard 
+                  key={item.short_name} 
+                  item={item} 
+                  onOpenMap={(name) => {
+                    setStudioIndex(name);
+                    setView("studio");
+                  }}
+                />
               ))}
             </div>
             {visibleSpectral.length < filteredSpectral.length && (
@@ -1580,39 +1657,50 @@ const CollectionCard = memo(function CollectionCard({ icon, title, description, 
   );
 });
 
-const SpectralCard = memo(function SpectralCard({ item }: { item: SpectralIndex; key?: any }) {
+const SpectralCard = memo(function SpectralCard({ item, onOpenMap }: { item: SpectralIndex; onOpenMap?: (name: string) => void; key?: any }) {
   return (
-    <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="font-bold text-lg text-indigo-600">{item.short_name}</h3>
-        <span className="text-[10px] px-2 py-1 bg-slate-100 rounded-full font-bold uppercase text-slate-500 tracking-wider">
-          {item.application_domain}
-        </span>
-      </div>
-      <div className="text-sm text-slate-700 font-medium mb-4 line-clamp-2">
-        <GlossaryText text={item.long_name} />
-      </div>
-      <div className="bg-slate-50 p-3 rounded-lg mb-4">
-        <code className="text-xs font-mono text-slate-600 break-all">{item.formula}</code>
-      </div>
-      <div className="flex flex-wrap gap-1 mb-4">
-        {item.platforms.slice(0, 3).map((p) => (
-          <span key={p} className="text-[10px] text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded">
-            {p}
+    <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+      <div>
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="font-bold text-lg text-indigo-600">{item.short_name}</h3>
+          <span className="text-[10px] px-2 py-1 bg-slate-100 rounded-full font-bold uppercase text-slate-500 tracking-wider">
+            {item.application_domain}
           </span>
-        ))}
-        {item.platforms.length > 3 && (
-          <span className="text-[10px] text-slate-400 px-1.5 py-0.5">+{item.platforms.length - 3} more</span>
-        )}
+        </div>
+        <div className="text-sm text-slate-700 font-medium mb-4 line-clamp-2">
+          <GlossaryText text={item.long_name} />
+        </div>
+        <div className="bg-slate-50 p-3 rounded-lg mb-4">
+          <code className="text-xs font-mono text-slate-600 break-all">{item.formula}</code>
+        </div>
+        <div className="flex flex-wrap gap-1 mb-4">
+          {item.platforms.slice(0, 3).map((p) => (
+            <span key={p} className="text-[10px] text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded">
+              {p}
+            </span>
+          ))}
+          {item.platforms.length > 3 && (
+            <span className="text-[10px] text-slate-400 px-1.5 py-0.5">+{item.platforms.length - 3} more</span>
+          )}
+        </div>
       </div>
-      <a 
-        href={item.reference} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 font-medium transition-colors"
-      >
-        <ExternalLink size={12} /> View Reference
-      </a>
+      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+        <button
+          onClick={() => onOpenMap?.(item.short_name)}
+          className="flex items-center gap-1.5 text-xs font-bold text-cyan-700 hover:text-cyan-900 bg-cyan-50 hover:bg-cyan-100 px-3 py-1.5 rounded-lg transition-colors border border-cyan-200 shadow-xs"
+        >
+          <Droplets size={13} className="text-cyan-600" />
+          <span>Lancer sur la Carte</span>
+        </button>
+        <a 
+          href={item.reference} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-800 font-medium transition-colors"
+        >
+          <ExternalLink size={12} /> Ref
+        </a>
+      </div>
     </div>
   );
 });

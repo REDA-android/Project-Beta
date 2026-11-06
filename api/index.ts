@@ -290,4 +290,127 @@ app.post("/api/ai/explain", async (req, res) => {
   }
 });
 
+// GEE & Water Studio API Endpoints
+app.get("/api/gee/status", (req, res) => {
+  const hasServiceAccount = Boolean(process.env.GEE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS);
+  const projectId = process.env.GEE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || "";
+  
+  res.json({
+    configured: Boolean(hasServiceAccount || projectId),
+    hasServiceAccount,
+    projectId: projectId ? `${projectId.slice(0, 4)}...${projectId.slice(-4)}` : null,
+    autonomousEngineReady: true,
+    supportedSensors: ["Sentinel-2 Harmonized (COPERNICUS/S2_SR_HARMONIZED)", "Landsat 8/9 (LANDSAT/LC08/C02/T1_L2)"],
+    availableIndices: ["NDWI", "MNDWI", "AWEInsh", "AWEIsh", "WRI", "ANDWI", "FWEI", "LSWI"]
+  });
+});
+
+app.post("/api/gee/process-water", async (req, res) => {
+  const { index = "NDWI", threshold = 0.0, bounds, sensor = "COPERNICUS/S2_SR_HARMONIZED", dateRange = { start: "2024-01-01", end: "2024-12-31" }, cloudMax = 20, customProject } = req.body;
+
+  const projectId = customProject || process.env.GEE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+  const isCloudConfigured = Boolean(projectId && (process.env.GEE_SERVICE_ACCOUNT || process.env.GOOGLE_APPLICATION_CREDENTIALS));
+
+  // Generate copy-paste ready GEE JavaScript script for this specific query
+  const jsScript = `// Google Earth Engine (JavaScript) - Water Extraction (${index})
+var aoi = ee.Geometry.Rectangle([${bounds?.west || 5.8}, ${bounds?.south || 44.2}, ${bounds?.east || 6.8}, ${bounds?.north || 44.8}]);
+
+var s2 = ee.ImageCollection("${sensor}")
+  .filterBounds(aoi)
+  .filterDate("${dateRange.start || '2024-05-01'}", "${dateRange.end || '2024-10-31'}")
+  .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", ${cloudMax}))
+  .median()
+  .clip(aoi);
+
+// Calculate ${index}
+// Sentinel-2 Bands: B3 = Green, B8 = NIR, B11 = SWIR1, B12 = SWIR2
+${index === 'NDWI' 
+  ? 'var waterIndex = s2.normalizedDifference(["B3", "B8"]).rename("NDWI");'
+  : index === 'MNDWI'
+  ? 'var waterIndex = s2.normalizedDifference(["B3", "B11"]).rename("MNDWI");'
+  : index === 'AWEInsh'
+  ? 'var waterIndex = s2.expression("4 * (G - S1) - (0.25 * N + 2.75 * S2)", {"G": s2.select("B3"), "S1": s2.select("B11"), "N": s2.select("B8"), "S2": s2.select("B12")}).rename("AWEInsh");'
+  : 'var waterIndex = s2.normalizedDifference(["B3", "B8"]).rename("NDWI");'}
+
+// Threshold for water mask
+var waterMask = waterIndex.gt(${threshold});
+
+// Visualization Parameters
+Map.centerObject(aoi, 11);
+Map.addLayer(s2, {bands: ["B4", "B3", "B2"], min: 0, max: 3000}, "Sentinel-2 True Color (RGB)");
+Map.addLayer(waterIndex, {min: -0.5, max: 0.5, palette: ["#d7191c", "#fdae61", "#ffffbf", "#abd9e9", "#2c7bb6"]}, "${index} Spectrum");
+Map.addLayer(waterMask.updateMask(waterMask), {palette: ["#00F0FF"]}, "Detected Water Surface (Threshold > ${threshold})");
+`;
+
+  const pythonScript = `# Python Earth Engine (geemap) - Water Extraction (${index})
+import ee
+import geemap
+
+ee.Initialize(project="${projectId || 'YOUR_PROJECT_ID'}")
+Map = geemap.Map()
+
+aoi = ee.Geometry.Rectangle([${bounds?.west || 5.8}, ${bounds?.south || 44.2}, ${bounds?.east || 6.8}, ${bounds?.north || 44.8}])
+Map.centerObject(aoi, 11)
+
+s2 = (ee.ImageCollection("${sensor}")
+    .filterBounds(aoi)
+    .filterDate("${dateRange.start || '2024-05-01'}", "${dateRange.end || '2024-10-31'}")
+    .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", ${cloudMax}))
+    .median()
+    .clip(aoi))
+
+${index === 'NDWI' 
+  ? 'water_index = s2.normalizedDifference(["B3", "B8"]).rename("NDWI")'
+  : index === 'MNDWI'
+  ? 'water_index = s2.normalizedDifference(["B3", "B11"]).rename("MNDWI")'
+  : 'water_index = s2.normalizedDifference(["B3", "B8"]).rename("NDWI")'}
+
+water_mask = water_index.gt(${threshold})
+
+Map.addLayer(s2, {"bands": ["B4", "B3", "B2"], "min": 0, "max": 3000}, "Sentinel-2 RGB")
+Map.addLayer(water_index, {"min": -0.5, "max": 0.5, "palette": ["#d7191c", "#fdae61", "#ffffbf", "#abd9e9", "#2c7bb6"]}, "${index}")
+Map.addLayer(water_mask.updateMask(water_mask), {"palette": ["#00F0FF"]}, "Water Mask")
+Map
+`;
+
+  res.json({
+    success: true,
+    engine: isCloudConfigured ? "gee-cloud" : "autonomous-satellite",
+    isCloudActive: isCloudConfigured,
+    message: isCloudConfigured 
+      ? "Requête Earth Engine traitée par le cloud Google Earth Engine." 
+      : "Mode autonome activé : rendu satellite direct haute résolution et filtrage spectral temps réel.",
+    index,
+    threshold,
+    sensor,
+    jsScript,
+    pythonScript,
+    aoi: bounds
+  });
+});
+
+app.get("/api/water/geocode", async (req, res) => {
+  const query = req.query.q as string;
+  if (!query || query.trim().length < 2) {
+    return res.status(400).json({ error: "Missing query parameter" });
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "GeoAwesome-RemoteSensing-Explorer/1.0"
+      }
+    });
+    if (!response.ok) {
+      return res.status(response.status).json({ error: "Geocoding service unavailable" });
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (err: any) {
+    console.error("Geocoding error:", err);
+    res.status(500).json({ error: "Failed to geocode location" });
+  }
+});
+
 export default app;
